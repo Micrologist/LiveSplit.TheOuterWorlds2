@@ -2,7 +2,7 @@ state("TheOuterWorlds2-Win64-Shipping"){}
 
 startup
 {
-    vars.Log = (Action<object>)((output) => print("[Ther Outer Worlds 2 ASL] " + output));
+    vars.Log = (Action<object>)((output) => print("[The Outer Worlds 2 ASL] " + output));
 
     vars.SetTextComponent = (Action<string,string>)((id,text)=>{
         var lsUI = typeof(LiveSplit.UI.Components.LayoutComponent).Namespace;
@@ -65,7 +65,8 @@ init
     vars.Log("GameEngine Ptr: 0x"+vars.GameEnginePtr.ToString("X"));
     vars.Log("uWorld Ptr: 0x"+vars.UWorldPtr.ToString("X"));
     vars.Log("FNamePool Ptr: 0x"+fNamePool.ToString("X"));
-    
+
+    current.worldName = old.worldName = "None";
 }
 
 update
@@ -73,23 +74,19 @@ update
     IntPtr uWorld = game.ReadValue<IntPtr>((IntPtr)vars.UWorldPtr);
     var worldFName = game.ReadValue<ulong>(uWorld + 0x18);
     var worldName = vars.FNameToString(worldFName);
+    current.worldName = (worldName == "None") ? old.worldName : worldName;
 
     // GameEngine.GameInstance.SaveGameManager
     // var saveGamePtr = new DeepPointer(vars.GameEnginePtr, 0x1178, 0x2D8).Deref<IntPtr>(game);
     // vars.Loading = game.ReadValue<bool>(saveGamePtr + 0x924);
 
     var syncLoadCount = game.ReadValue<int>((IntPtr)vars.SyncLoadCounterPtr);
-    vars.Loading = syncLoadCount != 0;
+    current.loading = syncLoadCount != 0;
 
     // GameEngine.GameInstance.LocalPlayers[0].PlayerController.PlayerCharacter
     var playerCharacterPtr = new DeepPointer(vars.GameEnginePtr, 0x1178, 0x38, 0x0, 0x30, 0x378).Deref<IntPtr>(game);
     var playerMovementPtr = game.ReadValue<IntPtr>((IntPtr)(playerCharacterPtr + 0x3C0));
-    var playerCapsulePtr = game.ReadValue<IntPtr>((IntPtr)(playerCharacterPtr + 0x3C8));
 
-    var xPos = game.ReadValue<double>((IntPtr)(playerCapsulePtr + 0x1A0));
-    var yPos = game.ReadValue<double>((IntPtr)(playerCapsulePtr + 0x1A8));
-    var zPos = game.ReadValue<double>((IntPtr)(playerCapsulePtr + 0x1B0));
-    
     var xVel = game.ReadValue<double>((IntPtr)(playerMovementPtr + 0x130));
     var yVel = game.ReadValue<double>((IntPtr)(playerMovementPtr + 0x138));
     var hVel = Math.Sqrt((xVel * xVel) + (yVel * yVel)) / 100;
@@ -101,13 +98,35 @@ update
     if(settings["debugText"])
     {
         vars.SetTextComponent("Time", System.DateTime.Now.ToString());
-        vars.SetTextComponent("WorldName", worldName);
+        vars.SetTextComponent("WorldName", current.worldName);
         vars.SetTextComponent("syncLoadCount", syncLoadCount.ToString());
-        vars.SetTextComponent("Loading", vars.Loading.ToString());
+        vars.SetTextComponent("Loading", current.loading.ToString());
     }
+
+    if(current.worldName != old.worldName)
+    {
+        vars.Log(old.worldName+" => "+current.worldName);
+    }
+}
+
+start
+{
+    // [The Outer Worlds 2 ASL] CharacterCreation_Lite => 0501_PS_Intro_P
+    return (current.worldName == "0501_PS_Intro_P" && old.worldName == "CharacterCreation_Lite");
+}
+
+reset
+{
+    // [Ther Outer Worlds 2 ASL] ConversationalMainMenu => CharacterCreation_Lite
+    return (current.worldName == "CharacterCreation_Lite" && old.worldName == "ConversationalMainMenu");
+}
+
+onStart
+{
+    timer.IsGameTimePaused = true;
 }
 
 isLoading
 {
-    return vars.Loading;
+    return current.loading;
 }
