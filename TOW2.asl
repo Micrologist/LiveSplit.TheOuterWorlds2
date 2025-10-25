@@ -117,7 +117,7 @@ start
 
 reset
 {
-    // [Ther Outer Worlds 2 ASL] ConversationalMainMenu => CharacterCreation_Lite
+    // [The Outer Worlds 2 ASL] ConversationalMainMenu => CharacterCreation_Lite
     return (current.worldName == "CharacterCreation_Lite" && old.worldName == "ConversationalMainMenu");
 }
 
