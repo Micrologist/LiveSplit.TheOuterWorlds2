@@ -81,7 +81,9 @@ update
     // vars.Loading = game.ReadValue<bool>(saveGamePtr + 0x924);
 
     var syncLoadCount = game.ReadValue<int>((IntPtr)vars.SyncLoadCounterPtr);
-    current.loading = syncLoadCount != 0;
+    var flushLevelStreamingType = game.ReadValue<byte>((IntPtr)(uWorld + 0x920));
+
+    current.loading = (syncLoadCount != 0) || (flushLevelStreamingType != 0);
 
     // GameEngine.GameInstance.LocalPlayers[0].PlayerController.PlayerCharacter
     var playerCharacterPtr = new DeepPointer(vars.GameEnginePtr, 0x1178, 0x38, 0x0, 0x30, 0x378).Deref<IntPtr>(game);
@@ -100,6 +102,7 @@ update
         vars.SetTextComponent("Time", System.DateTime.Now.ToString());
         vars.SetTextComponent("WorldName", current.worldName);
         vars.SetTextComponent("syncLoadCount", syncLoadCount.ToString());
+        vars.SetTextComponent("flushLevelStreaming", flushLevelStreamingType.ToString());
         vars.SetTextComponent("Loading", current.loading.ToString());
     }
 
