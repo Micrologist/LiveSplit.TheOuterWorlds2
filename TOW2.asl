@@ -29,6 +29,26 @@ startup
 
     timer.CurrentTimingMethod = TimingMethod.GameTime;
 
+    vars.Transitions = new[]
+    {
+        new[] { "0101_JP",                "0502_PlayerShip_P",     "horizonPointSplit",        "Split when leaving Horizon Point" },
+        new[] { "0203_Vox_P",             "0201_PI_P",             "voxStationSplit",          "Split when leaving Vox Station" },
+        new[] { "0303int_NRayRange_P",    "0301_GR_P",             "nrayRangeSplit",           "Split when leaving N-Ray Range" },
+        new[] { "0304int_ElektrumLab_P",  "0301_GR_P",             "zyraniumFactorySplit",     "Split when leaving Zyranium Factory" },
+        new[] { "0302int_Monastery_P",    "0301_GR_P",             "monasterySplit",           "Split when leaving Alexandra Monastery" },
+        new[] { "0503_PeaceTalks_P",      "0502_PlayerShip_P",     "tranquilityStationSplit",  "Split when leaving Tranqulity Station" },
+        new[] { "0604_Archive_P",         "0601_CL_P",             "archiveSplit",             "Split when leaving The Archive" },
+        new[] { "0901_HP_P",              "0905_SovereignsShip_P", "sovereignShipSplit",       "Split when boarding the Sovereign's ship" }
+    };
+
+    for (var i = 0; i < vars.Transitions.Length; i++)
+    {
+        var t = vars.Transitions[i];
+        settings.Add(t[2], true, t[3]);
+    }
+    
+    settings.Add("endSlidesSplit", true, "Split when reaching end slides");
+
     settings.Add("speedometer", false, "Show speed readout");
     settings.Add("debugText", false, "[DEBUG] Show debug values");
 }
@@ -82,7 +102,6 @@ update
 
     var syncLoadCount = game.ReadValue<int>((IntPtr)vars.SyncLoadCounterPtr);
     var flushLevelStreamingType = game.ReadValue<byte>((IntPtr)(uWorld + 0x920));
-
     current.loading = (syncLoadCount != 0) || (flushLevelStreamingType != 0);
 
     // GameEngine.GameInstance.LocalPlayers[0].PlayerController.PlayerCharacter
@@ -99,11 +118,9 @@ update
 
     if(settings["debugText"])
     {
-        vars.SetTextComponent("Time", System.DateTime.Now.ToString());
         vars.SetTextComponent("WorldName", current.worldName);
         vars.SetTextComponent("syncLoadCount", syncLoadCount.ToString());
         vars.SetTextComponent("flushLevelStreaming", flushLevelStreamingType.ToString());
-        vars.SetTextComponent("Loading", current.loading.ToString());
     }
 
     if(current.worldName != old.worldName)
@@ -114,13 +131,38 @@ update
 
 start
 {
-    // [The Outer Worlds 2 ASL] CharacterCreation_Lite => 0501_PS_Intro_P
     return (current.worldName == "0501_PS_Intro_P" && old.worldName == "CharacterCreation_Lite");
+}
+
+split
+{
+    // Only bother if world actually changed
+    if (current.worldName != old.worldName)
+    {
+        for (var i = 0; i < vars.Transitions.Length; i++)
+        {
+            var t = vars.Transitions[i];
+
+            if (old.worldName == t[0] && current.worldName == t[1])
+            {
+                if (settings[t[2]])
+                {
+                    return true;
+                }
+            }
+        }
+
+        if (old.worldName == "0905_SovereignsShip_P" && current.worldName == "09_endslides" && settings["endSlidesSplit"])
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 reset
 {
-    // [The Outer Worlds 2 ASL] ConversationalMainMenu => CharacterCreation_Lite
     return (current.worldName == "CharacterCreation_Lite" && old.worldName == "ConversationalMainMenu");
 }
 
