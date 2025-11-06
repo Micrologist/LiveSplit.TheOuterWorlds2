@@ -33,8 +33,6 @@ startup
     {
         new[] { "0101_JP",                "0502_PlayerShip_P",     "horizonPointSplit",        "Split when leaving Horizon Point" },
         new[] { "0203_Vox_P",             "0201_PI_P",             "voxStationSplit",          "Split when leaving Vox Station" },
-        new[] { "0303int_NRayRange_P",    "0301_GR_P",             "nrayRangeSplit",           "Split when leaving N-Ray Range" },
-        new[] { "0304int_ElektrumLab_P",  "0301_GR_P",             "zyraniumFactorySplit",     "Split when leaving Zyranium Factory" },
         new[] { "0302int_Monastery_P",    "0301_GR_P",             "monasterySplit",           "Split when leaving Alexandra Monastery" },
         new[] { "0503_PeaceTalks_P",      "0502_PlayerShip_P",     "tranquilityStationSplit",  "Split when leaving Tranqulity Station" },
         new[] { "0604_Archive_P",         "0601_CL_P",             "archiveSplit",             "Split when leaving The Archive" },
@@ -96,10 +94,6 @@ update
     var worldName = vars.FNameToString(worldFName);
     current.worldName = (worldName == "None") ? old.worldName : worldName;
 
-    // GameEngine.GameInstance.SaveGameManager
-    // var saveGamePtr = new DeepPointer(vars.GameEnginePtr, 0x1178, 0x2D8).Deref<IntPtr>(game);
-    // vars.Loading = game.ReadValue<bool>(saveGamePtr + 0x924);
-
     var syncLoadCount = game.ReadValue<int>((IntPtr)vars.SyncLoadCounterPtr);
     var flushLevelStreamingType = game.ReadValue<byte>((IntPtr)(uWorld + 0x920));
     current.loading = (syncLoadCount != 0) || (flushLevelStreamingType != 0);
@@ -107,25 +101,46 @@ update
     // GameEngine.GameInstance.LocalPlayers[0].PlayerController.PlayerCharacter
     var playerCharacterPtr = new DeepPointer(vars.GameEnginePtr, 0x1178, 0x38, 0x0, 0x30, 0x378).Deref<IntPtr>(game);
     var playerMovementPtr = game.ReadValue<IntPtr>((IntPtr)(playerCharacterPtr + 0x3C0));
-
-    var xVel = game.ReadValue<double>((IntPtr)(playerMovementPtr + 0x130));
-    var yVel = game.ReadValue<double>((IntPtr)(playerMovementPtr + 0x138));
-    var hVel = Math.Sqrt((xVel * xVel) + (yVel * yVel)) / 100;
-
-
+   
     if(settings["speedometer"])
-    vars.SetTextComponent("Speed", hVel.ToString("0.00") + " m/s");
+    {
+        var xVel = game.ReadValue<double>((IntPtr)(playerMovementPtr + 0x130));
+        var yVel = game.ReadValue<double>((IntPtr)(playerMovementPtr + 0x138));
+        var hVel = Math.Sqrt((xVel * xVel) + (yVel * yVel)) / 100;
+        vars.SetTextComponent("Speed", hVel.ToString("0.00"));
+    }
 
     if(settings["debugText"])
     {
         vars.SetTextComponent("WorldName", current.worldName);
         vars.SetTextComponent("syncLoadCount", syncLoadCount.ToString());
         vars.SetTextComponent("flushLevelStreaming", flushLevelStreamingType.ToString());
-    }
+        
+        var sprinting = game.ReadValue<bool>((IntPtr)(playerMovementPtr + 0x1989));
+        vars.SetTextComponent("sprinting", sprinting.ToString());
+        
+        var moving = game.ReadValue<bool>((IntPtr)(playerMovementPtr + 0x198B));
+        vars.SetTextComponent("moving", moving.ToString());
 
-    if(current.worldName != old.worldName)
-    {
-        vars.Log(old.worldName+" => "+current.worldName);
+        var isCrouched = (game.ReadValue<byte>((IntPtr)(playerCharacterPtr + 0x504)) & 1 )!= 0;
+        vars.SetTextComponent("crouched", isCrouched.ToString());
+
+        var pressedJump = game.ReadValue<int>((IntPtr)(playerCharacterPtr + 0x51C));
+        vars.SetTextComponent("jumpCount", pressedJump.ToString());
+
+        // GameEngine.GameInstance.SaveGameManager
+        var saveGamePtr = new DeepPointer(vars.GameEnginePtr, 0x1178, 0x2D8).Deref<IntPtr>(game);
+
+        var interactionComponentPtr = game.ReadValue<IntPtr>((IntPtr)(playerCharacterPtr + 0x1FC0));
+        var canInteract = game.ReadValue<bool>((IntPtr)(interactionComponentPtr + 0x230));
+
+        vars.SetTextComponent("canInteract", canInteract.ToString());
+
+        var interactTarget = game.ReadValue<IntPtr>((IntPtr)(interactionComponentPtr + 0x260));
+        var targetDistance = game.ReadValue<float>((IntPtr)(interactionComponentPtr + 0x24C));
+
+        vars.SetTextComponent("target", vars.FNameToString(game.ReadValue<ulong>((IntPtr)(interactTarget + 0x18))));
+        vars.SetTextComponent("distance", targetDistance.ToString("0.00"));
     }
 }
 
